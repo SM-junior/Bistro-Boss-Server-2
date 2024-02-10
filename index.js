@@ -31,6 +31,7 @@ async function run() {
         const menuCollection = client.db("bistroDb-1").collection("menu-1");
         const reviewCollection = client.db("bistroDb-1").collection("reviews-1");
         const cartCollection = client.db("bistroDb-1").collection("carts-1");
+        const userCollection = client.db("bistroDb-1").collection("users-1");
 
         app.get('/menu', async (req, res) => {
             const result = await menuCollection.find().toArray();
@@ -63,6 +64,24 @@ async function run() {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await cartCollection.deleteOne(query);
+            res.send(result)
+          })
+
+          //post login user in DB one by one
+          app.post('/users', async(req,res)=>{
+            const user=req.body;
+            const query={email: user.email}
+            const existingUser=await userCollection.findOne(query);
+            if(existingUser){
+                return res.send({message:'This user is already logged in'})
+            }
+            const result=await userCollection.insertOne(user);
+            res.send(result);
+          })
+
+          //get all logged in user from DB
+          app.get('/users', async(req,res)=>{
+            const result=await userCollection.find().toArray()
             res.send(result)
           })
 
