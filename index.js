@@ -3,6 +3,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors')
 const port = process.env.PORT || 3000;
+const jwt = require('jsonwebtoken');
 
 app.use(cors());
 app.use(express.json())
@@ -33,6 +34,13 @@ async function run() {
         const cartCollection = client.db("bistroDb-1").collection("carts-1");
         const userCollection = client.db("bistroDb-1").collection("users-1");
 
+        //JWT
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
+            res.send({token})
+        })
+
         app.get('/menu', async (req, res) => {
             const result = await menuCollection.find().toArray();
             res.send(result)
@@ -42,20 +50,20 @@ async function run() {
             res.send(result)
         })
 
-        app.post('/carts', async(req,res)=>{
-            const item=req.body;
-            const result=await cartCollection.insertOne(item)
+        app.post('/carts', async (req, res) => {
+            const item = req.body;
+            const result = await cartCollection.insertOne(item)
             res.send(result)
         })
 
-        app.get('/carts', async(req,res)=>{
-            const email=req.query.email;
-            if(!email){
+        app.get('/carts', async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
                 res.send([])
             }
-            else{
-                const query={email: email}
-                const result=await cartCollection.find(query).toArray();
+            else {
+                const query = { email: email }
+                const result = await cartCollection.find(query).toArray();
                 res.send(result)
             }
         })
@@ -65,48 +73,48 @@ async function run() {
             const query = { _id: new ObjectId(id) };
             const result = await cartCollection.deleteOne(query);
             res.send(result)
-          })
+        })
 
-          //post login user in DB one by one
-          app.post('/users', async(req,res)=>{
-            const user=req.body;
-            const query={email: user.email}
-            const existingUser=await userCollection.findOne(query);
-            if(existingUser){
-                return res.send({message:'This user is already logged in'})
+        //post login user in DB one by one
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            const query = { email: user.email }
+            const existingUser = await userCollection.findOne(query);
+            if (existingUser) {
+                return res.send({ message: 'This user is already logged in' })
             }
-            const result=await userCollection.insertOne(user);
+            const result = await userCollection.insertOne(user);
             res.send(result);
-          })
+        })
 
-          //get all logged in user from DB
-          app.get('/users', async(req,res)=>{
-            const result=await userCollection.find().toArray()
+        //get all logged in user from DB
+        app.get('/users', async (req, res) => {
+            const result = await userCollection.find().toArray()
             res.send(result)
-          })
+        })
 
-          //make an user admin
-          app.patch('/users/admin/:id', async(req,res)=>{
-            const id=req.params.id;
-            const filter={_id: new ObjectId(id)};
+        //make an user admin
+        app.patch('/users/admin/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
 
             const updateDoc = {
                 $set: {
-                  role: 'admin'
+                    role: 'admin'
                 },
-              };
+            };
 
-            const result=await userCollection.updateOne(filter,updateDoc)
+            const result = await userCollection.updateOne(filter, updateDoc)
             res.send(result)
-          });
+        });
 
-          //delete an user
-          app.delete('/users/:id', async(req,res)=>{
-            const id=req.params.id;
-            const query={_id: new ObjectId(id)}
-            const result=await userCollection.deleteOne(query)
+        //delete an user
+        app.delete('/users/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await userCollection.deleteOne(query)
             res.send(result)
-          })
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
