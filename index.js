@@ -12,6 +12,24 @@ app.get('/', (req, res) => {
     res.send('server is running')
 })
 
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if (!authorization) {
+        return res.status(401).send({ error: true, message: 'unauthorize access' })
+    }
+    const token = authorization.split(' ')[1];
+
+    jwt.verify(token, process.env.USER_NAME, (error, decoded) => {
+        if (error) {
+            res.status(403).send({ error: true, message: 'Forbidden access' })
+        }
+        else {
+            req.decoded = decoded;
+            next()
+        }
+    })
+}
+
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.PASS}@cluster0.n2wd0zs.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -37,8 +55,8 @@ async function run() {
         //JWT
         app.post('/jwt', (req, res) => {
             const user = req.body;
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
-            res.send({token})
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' });
+            res.send({ token })
         })
 
         app.get('/menu', async (req, res) => {
@@ -56,11 +74,18 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/carts', async (req, res) => {
+        app.get('/carts', verifyJWT, async (req, res) => {
             const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+
             if (!email) {
                 res.send([])
             }
+
+            if (email !== decodedEmail) {
+                res.status(403).send({ error: true, message: 'Forbidden access' })
+            }
+
             else {
                 const query = { email: email }
                 const result = await cartCollection.find(query).toArray();
@@ -87,7 +112,7 @@ async function run() {
             res.send(result);
         })
 
-        //get all logged in user from DB
+        //get all logged user from DB
         app.get('/users', async (req, res) => {
             const result = await userCollection.find().toArray()
             res.send(result)
@@ -107,6 +132,18 @@ async function run() {
             const result = await userCollection.updateOne(filter, updateDoc)
             res.send(result)
         });
+
+        app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+
+            if (req.decoded.email !== email) {
+                res.send({ admin: false })
+            }
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            const result = { admin: user?.role === 'admin' };
+            res.send(result)
+        })
 
         //delete an user
         app.delete('/users/:id', async (req, res) => {
